@@ -1,0 +1,142 @@
+---
+title: "Week 4 Exam"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+***Preparation***
+\
+Let's first plan out how the data flows will work by identifying what packages, functions and data we need.
+
+*Packages to load*
+\ 
+  - sf\
+  - dplyr\
+  - tidyverse\
+  - here\
+  - readxl\
+  - janitor\
+  - stringr\
+  - tmap\
+
+*Functions*
+\ 
+  - read_xlsx\
+  - st_layers\
+  - filter\
+  - read.csv\
+  - mutate\
+  - pivot\
+  - cleannames\
+
+*Data*
+\
+Gender Inequality Index for 2010 and 2019\
+\
+World Dataset  - <https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_Countries_(Generalized)/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson>
+\
+Also, we can plan what our basic process will be and what the expected outputs are:
+
+*Process*
+\
+  - load packages\
+  - read data\
+  - clean names\
+  - pivot wider\
+  - mutate column to calculate difference between indexes\
+  - show difference on map\
+  - save output\
+
+*Output*
+\
+  - Shapefile of differences\
+  - CSV of differences\
+
+***Code***
+
+By following our plan above we start by loading the required packages.
+
+```{r}
+library(sf)
+library(dplyr)
+library(tidyverse)
+library(here)
+library(readxl)
+library(janitor)
+library(stringr)
+library(tmap)
+```
+
+Next we will read in the required data.  In this case the Gender Inequality Index data whihc was downloaded from https://hdr.undp.org/data-center/documentation-and-downloads and also the world geometries geojson.
+
+```{r}
+# read gender data and prepare the relevant columns
+gii_raw <- readxl::read_xlsx(here::here("data", "GenderInequalityIndex2010_2019.xlsx")) %>%
+  janitor::clean_names() %>%
+  dplyr::select(country_iso_code,country, year, value)
+
+# read geometries and prepare columns
+world <- sf::st_read("https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_Countries_(Generalized)/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson") %>%
+  janitor::clean_names() %>%
+  dplyr::select(country, iso, geometry)
+```
+
+Now we need to prepare the gender data, firstly by removing any regions from the GII country column.
+
+```{r}
+# create data frame and filter to only countries (exclude regions)  
+gii_filtered <- data.frame(gii_raw) %>%
+  filter(str_detect(gii_raw$country_iso_code,"ZZ",TRUE))
+```
+
+We now pivot the data so it is in a usable format, rename the columns and create a new column that calculates the difference between the 2019 and 2010 index values.
+
+```{r}
+# pivot gii data
+gii_wider <- gii_filtered %>%
+  pivot_wider(names_from = "year",values_from = "value")
+
+#rename value columns for ease of use
+gii_wider <- gii_wider %>% dplyr::rename(value2010 = "2010", value2019 = "2019")
+
+# create new column showing difference between 2019 and 2010 values
+gii_new <- gii_wider %>%
+  mutate(., difference=(value2019-value2010))
+```
+
+Then spatialise the data by joining the GII data with the world geometries geojson that was read in earlier.
+
+```{r}
+# spatialise the data by joining to world file
+world_gii_spatial <- world %>%
+  left_join(., 
+            gii_new,
+            by = c("country"="country"))
+```
+
+We can view the data on a map at this stage usibg tmap.
+
+```{r}
+# view the data on a map
+tmap_mode("plot")
+tm_shape(world_gii_spatial) + 
+  tm_polygons("difference", 
+              style="jenks",
+              palette="Greens",
+              midpoint=NA,
+              title="GII difference",
+              alpha = 0.5) + 
+  tm_basemap(server = "OpenStreetMap") +
+  tm_layout(title = "Difference between Gender Inequlaity Index between 2010 and 2019")
+```
+
+The final stage is to write the data to a CSV and a shapefile.
+
+```{r}
+# write data csv and shapefile
+write.csv(gii_new, file = here::here("output", "GenderInequalityIndexWorld.csv"))
+st_write(world_gii_spatial, "output/GenderInequalityIndexMap.shp", append=FALSE)
+```
+
+

@@ -1,0 +1,12 @@
+---
+title: "First R Markdown"
+output: html_document
+---
+```{r}
+library(terra)
+library(here)
+jan <- terra::rast("C:/UCL/CASA0005 GIS/wk3_proj/data/wc2.1_5m_tavg_01.tif")
+# have a look at the raster layer jan
+plot(jan)
+```
+
