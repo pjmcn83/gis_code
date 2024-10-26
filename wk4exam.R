@@ -8,33 +8,6 @@ library(janitor)
 library(stringr)
 library(tmap)
 
-# Functions
-# read_xlsx
-# st_layers
-# filter
-# read.csv
-# mutate
-# pivot
-# cleannames
-
-# Data
-# gender inequality index for 2010 and 2019
-# world dataset  - geojson link https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_Countries_(Generalized)/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson
-
-# Process
-# load packages
-# read data
-# clean names
-# pivot wider
-# mutate column to calculate difference between indexes
-# plot differences
-# save output
-
-# Output
-# Map of differences
-# CSV of differences
-
-
 ## Read the data
 # read gender data and prepare columns
 gii_raw <- readxl::read_xlsx(here::here("data", "GenderInequalityIndex2010_2019.xlsx")) %>%
@@ -82,6 +55,6 @@ tm_shape(world_gii_spatial) +
 
 # write data csv and shapefile
 write.csv(gii_new, file = here::here("output", "GenderInequalityIndexWorld.csv"))
-st_write(world_gii_spatial, "output/GenderInequalityIndexMap.shp")
+st_write(world_gii_spatial, "output/GenderInequalityIndexMap.shp", append=FALSE)
 
 
